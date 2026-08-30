@@ -8,6 +8,13 @@ CREATE TABLE IF NOT EXISTS plans(id INTEGER PRIMARY KEY AUTOINCREMENT,customer_i
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,customer_id INTEGER,name TEXT NOT NULL,plan TEXT,gb INTEGER,date TEXT);
 CREATE TABLE IF NOT EXISTS services(id INTEGER PRIMARY KEY AUTOINCREMENT,customer_id INTEGER,name TEXT,user TEXT,server TEXT,link TEXT);
 CREATE TABLE IF NOT EXISTS logs(id INTEGER PRIMARY KEY AUTOINCREMENT,customer_id INTEGER,text TEXT,time TEXT);`);
+
+// Default first admin (changeable from the Admins section).
+const DEFAULT_ADMIN_USER = process.env.ADMIN_USER || 'mahdi';
+const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'mahdi6812';
+if (db.prepare('SELECT COUNT(*) n FROM admins').get().n === 0) {
+  db.prepare('INSERT INTO admins(username,password_hash) VALUES(?,?)').run(DEFAULT_ADMIN_USER, bcrypt.hashSync(DEFAULT_ADMIN_PASSWORD, 12));
+}
 const secret=process.env.JWT_SECRET||'CHANGE_ME';
 function auth(req,res,next){try{const h=req.headers.authorization||'';if(!h.startsWith('Bearer '))throw 0;req.auth=jwt.verify(h.slice(7),secret);next()}catch(e){res.status(401).json({error:'unauthorized'})}}
 function admin(req,res,next){if(req.auth.role!=='admin')return res.status(403).json({error:'admin_only'});next()}
