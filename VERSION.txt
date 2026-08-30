@@ -1,2 +1,3 @@
 STRIX VIP PANEL
-Version 1.2
+Version 1.4
+Theme: Black & Gold / STRIX VIP NETWORK
