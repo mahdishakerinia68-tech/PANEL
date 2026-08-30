@@ -23,3 +23,8 @@ header,.card,.stat,.server,.modalbox{
 .stat strong,h2,h3,header h1{color:#f1c35d}
 th{color:#b99a5c}
 .action{color:#e0ad43}
+
+/* Version badge beside M logo */
+.logo-row{display:flex;align-items:center;justify-content:center;gap:7px}
+.brand .logo-row{justify-content:flex-start;flex-shrink:0}
+.version-badge{font-size:11px;font-weight:800;letter-spacing:.5px;color:#f3c55b;border:1px solid #8b6118;background:rgba(20,14,4,.85);padding:4px 7px;border-radius:8px;white-space:nowrap;box-shadow:0 0 10px rgba(184,125,20,.12)}
