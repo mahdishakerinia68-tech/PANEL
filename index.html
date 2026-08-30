@@ -1,13 +1,4 @@
-<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>STRIX VIP PANEL</title><link rel="stylesheet" href="style.css"></head><body>
-<div id="setup" class="hidden">
-  <div class="login-box">
-    <h1>STRIX VIP PANEL</h1>
-    <p>ساخت اولین ادمین</p>
-    <input id="setupUser" placeholder="نام کاربری ادمین">
-    <input id="setupPass" type="password" placeholder="رمز عبور (حداقل ۸ کاراکتر)">
-    <button class="primary" onclick="createFirstAdmin()">ساخت ادمین</button>
-  </div>
-</div>
-<div id="login" class="login"><div class="loginbox"><div class="logo">M</div><h1>STRIX VIP PANEL</h1><p>ورود به پنل</p><select id="loginRole"><option value="admin">مدیر اصلی</option><option value="customer">مشتری پنل</option></select><input id="loginUser" placeholder="نام کاربری"><input id="loginPass" type="password" placeholder="رمز عبور"><button class="primary" onclick="login()">ورود</button><small>دموی اولیه: مدیر / admin — مشتری / customer</small></div></div>
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>STRIX VIP PANEL | v1.4</title><link rel="stylesheet" href="style.css"></head><body>
+<div id="setup" class="hidden"><div class="loginbox"><div class="logo">S</div><h1>STRIX VIP PANEL</h1><p>ساخت اولین ادمین</p><input id="setupUser" placeholder="نام کاربری ادمین"><input id="setupPass" type="password" placeholder="رمز عبور حداقل ۸ کاراکتر"><button class="primary" onclick="createFirstAdmin()">ساخت ادمین</button></div></div><div id="login" class="login"><div class="loginbox"><div class="logo">M</div><h1>STRIX VIP PANEL</h1><p>ورود به پنل</p><select id="loginRole"><option value="admin">مدیر اصلی</option><option value="customer">مشتری پنل</option></select><input id="loginUser" placeholder="نام کاربری"><input id="loginPass" type="password" placeholder="رمز عبور"><button class="primary" onclick="login()">ورود</button></div></div>
 <div id="app" class="hidden"><aside id="sidebar"><div class="brand"><div class="logo">M</div><div><b>STRIX VIP PANEL</b><small id="roleText">مدیر اصلی</small></div></div><nav id="nav"></nav><div class="admin"><span class="avatar" id="avatar">A</span><div><b id="who">مدیر اصلی</b><small id="whoSub">Administrator</small></div></div><button class="logout" onclick="logout()">خروج</button></aside><main><header><button id="menu">☰</button><div><h1 id="title">داشبورد</h1><p id="sub">نمای کلی پنل</p></div><button id="theme">☾</button></header><div id="content"></div></main></div>
 <div id="modal" class="modal"><div class="modalbox"><button class="close" onclick="closeModal()">×</button><h2 id="modalTitle"></h2><div id="modalBody"></div><button class="primary" id="modalSave">ذخیره</button></div></div><script src="app.js"></script></body></html>

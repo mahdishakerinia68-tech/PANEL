@@ -1,3 +1,4 @@
 STRIX VIP PANEL
 Version 1.5
 First-admin setup enabled
+Theme: Black & Gold
