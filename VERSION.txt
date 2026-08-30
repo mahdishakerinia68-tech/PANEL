@@ -1,3 +1,4 @@
 STRIX VIP PANEL
 Version 1.2
+Default admin: mahdi
 Account username/password change enabled
