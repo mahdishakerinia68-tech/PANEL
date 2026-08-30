@@ -88,7 +88,7 @@ function own(table, req) {
   return req.auth.role === 'admin' ? {} : { customer_id: req.auth.customerId };
 }
 
-app.get('/api/health', (req, res) => res.json({ ok: true, name: 'STRIX VIP PANEL', version: '1.2.0' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, name: 'STRIX VIP PANEL', version: '1.3.0' }));
 
 app.get('/api/setup/status', (req, res) => {
   res.json({ needsSetup: adminCount() === 0 });
@@ -235,7 +235,7 @@ app.delete('/api/customers/:id', auth, admin, (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/servers', auth, (req, res) => res.json(db.prepare('SELECT id,name,url,status FROM servers ORDER BY id DESC').all()));
+app.get('/api/servers', auth, admin, (req, res) => res.json(db.prepare('SELECT id,name,url,token,status FROM servers ORDER BY id DESC').all()));
 app.post('/api/servers', auth, admin, (req, res) => { const {name,url,token}=req.body||{}; const r=db.prepare('INSERT INTO servers(name,url,token) VALUES(?,?,?)').run(name,url,token||''); res.json({id:r.lastInsertRowid}); });
 app.put('/api/servers/:id', auth, admin, (req,res)=>{ const {name,url,token,status}=req.body||{}; db.prepare('UPDATE servers SET name=?,url=?,token=?,status=? WHERE id=?').run(name,url,token||'',status||'online',req.params.id); res.json({ok:true}); });
 app.delete('/api/servers/:id', auth, admin, (req,res)=>{db.prepare('DELETE FROM servers WHERE id=?').run(req.params.id);res.json({ok:true});});
@@ -274,6 +274,12 @@ crud('services',['name','user','server','link']);
 app.get('/api/logs',auth,(req,res)=>{
   if(req.auth.role==='admin') return res.json(db.prepare('SELECT * FROM logs ORDER BY id DESC').all());
   res.json(db.prepare('SELECT * FROM logs WHERE customer_id=? ORDER BY id DESC').all(req.auth.customerId));
+});
+
+app.delete('/api/logs',auth,(req,res)=>{
+  if(req.auth.role==='admin') db.prepare('DELETE FROM logs').run();
+  else db.prepare('DELETE FROM logs WHERE customer_id=?').run(req.auth.customerId);
+  res.json({ok:true});
 });
 
 const PORT=Number(process.env.PORT||3000);
