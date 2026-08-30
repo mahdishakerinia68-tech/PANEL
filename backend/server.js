@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express=require('express'),cors=require('cors'),jwt=require('jsonwebtoken'),bcrypt=require('bcryptjs'),Database=require('better-sqlite3');
 const app=express(),db=new Database('strix.db'); app.use(cors());app.use(express.json());
+
 db.exec(`CREATE TABLE IF NOT EXISTS admins(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,username TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,status TEXT DEFAULT 'active');
 CREATE TABLE IF NOT EXISTS servers(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,url TEXT NOT NULL,token TEXT DEFAULT '',status TEXT DEFAULT 'online');
@@ -12,6 +13,8 @@ const secret=process.env.JWT_SECRET||'CHANGE_ME';
 function auth(req,res,next){try{const h=req.headers.authorization||'';if(!h.startsWith('Bearer '))throw 0;req.auth=jwt.verify(h.slice(7),secret);next()}catch(e){res.status(401).json({error:'unauthorized'})}}
 function admin(req,res,next){if(req.auth.role!=='admin')return res.status(403).json({error:'admin_only'});next()}
 function own(table,req){return req.auth.role==='admin'?{}:{customer_id:req.auth.customerId}}
+app.get('/api/setup/status',(req,res)=>res.json({needsSetup:db.prepare('SELECT COUNT(*) n FROM admins').get().n===0}));
+app.post('/api/setup/create-admin',(req,res)=>{let count=db.prepare('SELECT COUNT(*) n FROM admins').get().n;if(count>0)return res.status(409).json({error:'setup_completed'});let {username,password}=req.body||{};if(!username||!password||password.length<8)return res.status(400).json({error:'username_and_password_min_8_required'});let r=db.prepare('INSERT INTO admins(username,password_hash) VALUES(?,?)').run(username,bcrypt.hashSync(password,12));res.json({ok:true,id:r.lastInsertRowid})});
 app.post('/api/auth/login',(req,res)=>{let {username,password}=req.body||{};let a=db.prepare('SELECT * FROM admins WHERE username=?').get(username);if(a&&bcrypt.compareSync(password,a.password_hash))return res.json({token:jwt.sign({role:'admin',adminId:a.id},secret,{expiresIn:'7d'}),role:'admin',admin:{id:a.id,username:a.username}});if(username===process.env.ADMIN_USER&&password===process.env.ADMIN_PASSWORD)return res.json({token:jwt.sign({role:'admin'},secret,{expiresIn:'7d'}),role:'admin'});let c=db.prepare('SELECT * FROM customers WHERE username=? AND status=?').get(username,'active');if(!c||!bcrypt.compareSync(password,c.password_hash))return res.status(401).json({error:'invalid_login'});res.json({token:jwt.sign({role:'customer',customerId:c.id},secret,{expiresIn:'7d'}),role:'customer',customer:{id:c.id,name:c.name,username:c.username}})});
 app.get('/api/admins',auth,admin,(req,res)=>res.json(db.prepare('SELECT id,username FROM admins ORDER BY id').all()));
 app.post('/api/admins',auth,admin,(req,res)=>{let {username,password}=req.body||{};if(!username||!password)return res.status(400).json({error:'missing'});try{let r=db.prepare('INSERT INTO admins(username,password_hash) VALUES(?,?)').run(username,bcrypt.hashSync(password,12));res.json({id:r.lastInsertRowid})}catch(e){res.status(409).json({error:'username_exists'})}});
