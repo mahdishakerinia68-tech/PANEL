@@ -26,3 +26,7 @@ npm start
 ```
 
 سپس فایل‌های ریشه را با یک Static Server سرو کنید و API را روی همان Origin یا با Proxy به Backend متصل کنید.
+
+
+### مهم برای ورود
+برای اجرای کامل پنل، Frontend و Backend را از یک سرور اجرا کنید: داخل `backend/` دستور `npm install` و سپس `npm start` را اجرا کنید و پنل را از `http://SERVER:3000/` باز کنید. باز کردن مستقیم `index.html` با `file://` یا فقط GitHub Pages باعث می‌شود APIهای Login/Setup به Backend وصل نشوند. اگر Frontend روی دامنه جداست، قبل از `app.js` مقدار `window.STRIX_API_BASE` را برابر آدرس Backend قرار دهید.
