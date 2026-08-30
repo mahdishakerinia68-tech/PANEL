@@ -1,22 +1,55 @@
-const KEY='strix_vip_v1_1';let db=JSON.parse(localStorage.getItem(KEY)||'null')||{customers:[{id:'c1',name:'مشتری نمونه',user:'customer',pass:'customer',status:'active'}],servers:[],users:[],services:[],plans:[],logs:[],settings:{name:'STRIX VIP PANEL',desc:'پنل مدیریت اصلی'}};let session=null;
+const KEY='strix_vip_v1_2';let db=JSON.parse(localStorage.getItem(KEY)||'null')||{customers:[],servers:[],users:[],services:[],plans:[],logs:[],settings:{name:'STRIX VIP PANEL',desc:'پنل مدیریت اصلی'}};let session=null;
 const $=s=>document.querySelector(s);const esc=x=>String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}async function checkSetup(){try{let r=await fetch('/api/setup/status');let x=await r.json();if(x.needsSetup){$('#login')?.classList.add('hidden');$('#setup')?.classList.remove('hidden')}}catch(e){}}
-async function createFirstAdmin(){let username=$('#setupUser').value.trim(),password=$('#setupPass').value;if(!username||password.length<8)return alert('نام کاربری و رمز حداقل ۸ کاراکتر لازم است');let r=await fetch('/api/setup/create-admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});let x=await r.json();if(!r.ok)return alert(x.error||'خطا');alert('ادمین ساخته شد؛ حالا وارد شوید');$('#setup').classList.add('hidden');$('#login').classList.remove('hidden')}
-async function login(){let r=$('#loginRole').value,u=$('#loginUser').value,p=$('#loginPass').value;let res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})}).then(x=>x.json()).catch(()=>null);if(!res?.token)return alert('نام کاربری یا رمز عبور اشتباه است');if(r==='admin'&&res.role!=='admin')return alert('این حساب مدیر نیست');if(r==='customer'&&res.role!=='customer')return alert('این حساب مشتری نیست');session={role:res.role,customer:res.customer?.id||null,adminId:res.admin?.id||null,token:res.token};$('#login').classList.add('hidden');$('#app').classList.remove('hidden');buildNav();showPage('dashboard');loadAdmins()}function account(){return `<section class=page><div class=head><div><h2>حساب کاربری</h2><p>تغییر نام کاربری و رمز عبور</p></div></div><div class="card account-card"><label>نام کاربری جدید</label><input id="accountUsername" placeholder="نام کاربری جدید"><label>رمز عبور جدید</label><input id="accountPassword" type="password" placeholder="حداقل ۸ کاراکتر"><label>تکرار رمز عبور</label><input id="accountPassword2" type="password" placeholder="تکرار رمز"><button class="primary" onclick="changeMyAccount()">ذخیره تغییرات</button></div></section>`}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}
+function setupMessage(msg=''){const el=$('#setupError');if(el){el.textContent=msg;el.classList.toggle('hidden',!msg)}}
+async function checkSetup(){
+  $('#setup')?.classList.add('hidden'); $('#login')?.classList.add('hidden');
+  try{
+    const r=await fetch('/api/setup/status',{cache:'no-store'}),x=await r.json();
+    if(x.needsSetup) $('#setup')?.classList.remove('hidden');
+    else $('#login')?.classList.remove('hidden');
+  }catch(e){
+    $('#login')?.classList.remove('hidden');
+    alert('اتصال به Backend برقرار نشد. آدرس Backend و اجرای سرور را بررسی کنید.');
+  }
+}
+async function createFirstAdmin(){
+  setupMessage('');
+  const username=$('#setupUser').value.trim(),password=$('#setupPass').value,passwordConfirm=$('#setupPass2').value;
+  if(username.length<3)return setupMessage('آیدی ادمین باید حداقل ۳ کاراکتر باشد.');
+  if(password.length<8)return setupMessage('رمز ادمین باید حداقل ۸ کاراکتر باشد.');
+  if(password!==passwordConfirm)return setupMessage('تکرار رمز عبور با رمز اصلی یکسان نیست.');
+  const r=await fetch('/api/setup/create-admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password,passwordConfirm})});
+  const x=await r.json().catch(()=>({}));
+  if(!r.ok)return setupMessage(({username_exists:'این آیدی قبلاً استفاده شده است.',setup_completed:'اولین ادمین قبلاً ساخته شده است.',username_min_3:'آیدی باید حداقل ۳ کاراکتر باشد.',password_min_8:'رمز باید حداقل ۸ کاراکتر باشد.',password_mismatch:'تکرار رمز یکسان نیست.'})[x.error]||'ساخت ادمین ناموفق بود.');
+  session={role:'admin',customer:null,adminId:x.admin.id,adminUsername:x.admin.username,token:x.token};
+  $('#setup').classList.add('hidden');$('#login').classList.add('hidden');$('#app').classList.remove('hidden');
+  buildNav();showPage('dashboard');loadAdmins();
+}
+async function login(){
+  const r=$('#loginRole').value,u=$('#loginUser').value.trim(),p=$('#loginPass').value;
+  const res=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})}).then(x=>x.json()).catch(()=>null);
+  if(res?.error==='setup_required'){return checkSetup()}
+  if(!res?.token)return alert('نام کاربری یا رمز عبور اشتباه است');
+  if(r==='admin'&&res.role!=='admin')return alert('این حساب مدیر نیست');
+  if(r==='customer'&&res.role!=='customer')return alert('این حساب مشتری نیست');
+  session={role:res.role,customer:res.customer?.id||null,customerName:res.customer?.name||null,customerUsername:res.customer?.username||null,adminId:res.admin?.id||null,adminUsername:res.admin?.username||null,token:res.token};
+  $('#login').classList.add('hidden');$('#setup').classList.add('hidden');$('#app').classList.remove('hidden');buildNav();showPage('dashboard');loadAdmins();
+}
+function account(){return `<section class=page><div class=head><div><h2>حساب کاربری / تنظیمات ادمین</h2><p>تغییر Username و Password حساب فعلی</p></div></div><div class="card account-card"><label>Username جدید<input id="accountUsername" value="${esc(session.role==='admin'?session.adminUsername:(session.customerUsername||''))}" placeholder="حداقل ۳ کاراکتر"></label><label>Password جدید<input id="accountPassword" type="password" placeholder="خالی بگذارید تا رمز تغییر نکند"></label><label>تکرار Password جدید<input id="accountPassword2" type="password" placeholder="تکرار رمز"></label><button class="primary" onclick="changeMyAccount()">ذخیره تغییرات</button></div></section>`}
 async function changeMyAccount(){
-const username=$('#accountUsername').value.trim(),p=$('#accountPassword').value,p2=$('#accountPassword2').value;
-if(!username)return alert('نام کاربری را وارد کنید');
-if(p && p.length<8)return alert('رمز عبور باید حداقل ۸ کاراکتر باشد');
-if(p!==p2)return alert('تکرار رمز عبور یکسان نیست');
-const id=session.role==='admin'?session.adminId:session.customer;
-const url=session.role==='admin'?'/api/admins/'+id:'/api/customers/'+id;
-const body={username};if(p)body.password=p;
-const r=await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.token},body:JSON.stringify(body)});
-const x=await r.json().catch(()=>({}));if(!r.ok)return alert(x.error||'خطا');
-alert('اطلاعات ورود تغییر کرد. دوباره وارد شوید.');logout();
+  const username=$('#accountUsername').value.trim(),p=$('#accountPassword').value,p2=$('#accountPassword2').value;
+  if(username.length<3)return alert('Username باید حداقل ۳ کاراکتر باشد.');
+  if(p && p.length<8)return alert('Password جدید باید حداقل ۸ کاراکتر باشد.');
+  if(p!==p2)return alert('تکرار Password با Password جدید یکسان نیست.');
+  const r=await fetch('/api/account/me',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.token},body:JSON.stringify({username,password:p||undefined,passwordConfirm:p2||undefined})});
+  const x=await r.json().catch(()=>({}));
+  if(!r.ok)return alert(({username_exists:'این Username قبلاً استفاده شده است.',password_min_8:'Password باید حداقل ۸ کاراکتر باشد.',password_mismatch:'تکرار Password یکسان نیست.'})[x.error]||'ذخیره تغییرات ناموفق بود.');
+  alert('اطلاعات ورود تغییر کرد. Session قبلی باطل شد؛ دوباره Login کنید.');
+  logout();
 }
 function logout(){session=null;$('#app').classList.add('hidden');$('#login').classList.remove('hidden')}
-function buildNav(){let admin=session.role==='admin';let items=admin?[['dashboard','⌂','داشبورد'],['customers','♟','مشتریان پنل'],['admins','🛡','مدیران'],['account','⚙','حساب کاربری'],['servers','◈','سرورها'],['users','♙','کاربران'],['services','🔗','سرویس‌ها'],['plans','▣','پلن‌ها'],['logs','≡','گزارش‌ها'],['settings','⚙','تنظیمات']]:[['dashboard','⌂','داشبورد'],['users','♙','کاربران'],['services','🔗','سرویس‌ها'],['plans','▣','پلن‌ها'],['settings','⚙','تنظیمات']];$('#nav').innerHTML=items.map(x=>`<button class="nav" data-page="${x[0]}" onclick="showPage('${x[0]}')">${x[1]} <span>${x[2]}</span></button>`).join('');$('#roleText').textContent=admin?'مدیر اصلی':'مشتری پنل';$('#who').textContent=admin?'مدیر اصلی':db.customers.find(x=>x.id===session.customer)?.name||'مشتری';$('#whoSub').textContent=admin?'Administrator':'Customer';$('#avatar').textContent=admin?'A':'C'}
+function buildNav(){let admin=session.role==='admin';let items=admin?[['dashboard','⌂','داشبورد'],['customers','♟','مشتریان پنل'],['admins','🛡','مدیران'],['account','⚙','حساب کاربری'],['servers','◈','سرورها'],['users','♙','کاربران'],['services','🔗','سرویس‌ها'],['plans','▣','پلن‌ها'],['logs','≡','گزارش‌ها'],['settings','⚙','تنظیمات']]:[['dashboard','⌂','داشبورد'],['users','♙','کاربران'],['services','🔗','سرویس‌ها'],['plans','▣','پلن‌ها'],['settings','⚙','تنظیمات']];$('#nav').innerHTML=items.map(x=>`<button class="nav" data-page="${x[0]}" onclick="showPage('${x[0]}')">${x[1]} <span>${x[2]}</span></button>`).join('');$('#roleText').textContent=admin?'مدیر اصلی':'مشتری پنل';$('#who').textContent=admin?(session.adminUsername||'مدیر اصلی'):(session.customerName||'مشتری');$('#whoSub').textContent=admin?'Administrator':'Customer';$('#avatar').textContent=admin?'A':'C'}
 function owned(arr){if(session.role==='admin')return arr;let cid=session.customer;return arr.filter(x=>x.customerId===cid)}function addOwned(x){if(session.role==='customer')x.customerId=session.customer;return x}
 function showPage(id){let titles={dashboard:['داشبورد','نمای کلی'],customers:['مشتریان پنل','ساخت پنل برای هر مشتری'],admins:['مدیران','مدیریت حساب‌های مدیر'],servers:['سرورها','مدیریت سرورهای Marzban'],users:['کاربران','مدیریت کاربران'],services:['سرویس‌ها','لینک‌های اتصال'],plans:['پلن‌ها','پلن‌های قابل تعریف'],logs:['گزارش‌ها','رویدادها'],settings:['تنظیمات','تنظیمات']};$('#title').textContent=titles[id][0];$('#sub').textContent=titles[id][1];document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===id));let c=$('#content');if(id==='dashboard')c.innerHTML=dashboard();if(id==='customers')c.innerHTML=customers();if(id==='admins')c.innerHTML=admins();if(id==='account')c.innerHTML=account();if(id==='servers')c.innerHTML=servers();if(id==='users')c.innerHTML=users();if(id==='services')c.innerHTML=services();if(id==='plans')c.innerHTML=plans();if(id==='logs')c.innerHTML=logs();if(id==='settings')c.innerHTML=settings();if(innerWidth<821)$('#sidebar').classList.remove('open')}
 function dashboard(){let u=owned(db.users),s=session.role==='admin'?db.servers:[],sv=owned(db.services);return `<section class=page><div class=head><div><h2>سلام 👋</h2><p>${session.role==='admin'?'مدیریت کل سیستم':'پنل اختصاصی شما'}</p></div></div><div class=stats><div class=stat><b>کاربران</b><strong>${u.length}</strong></div><div class=stat><b>سرویس‌ها</b><strong>${sv.length}</strong></div><div class=stat><b>${session.role==='admin'?'سرورها':'پلن‌ها'}</b><strong>${session.role==='admin'?s.length:owned(db.plans).length}</strong></div><div class=stat><b>وضعیت حساب</b><strong>فعال</strong></div></div><div class=card><h3>${session.role==='admin'?'ساختار چندمشتری':'پنل اختصاصی مشتری'}</h3><p>${session.role==='admin'?'هر مشتری اطلاعات جداگانه، کاربران و سرویس‌های خودش را دارد. مدیر اصلی دسترسی کامل دارد.':'اطلاعات این حساب از سایر مشتریان جداست و فقط موارد اختصاص داده‌شده به شما نمایش داده می‌شود.'}</p></div></section>`}
