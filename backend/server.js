@@ -4,12 +4,17 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const path = require('path');
 const Database = require('better-sqlite3');
 
 const app = express();
 const db = new Database(process.env.DB_PATH || 'strix.db');
 app.use(cors());
 app.use(express.json());
+
+// Serve the existing frontend from the same backend so API paths like /api/...
+// work when the project is started with `npm start` from backend/.
+app.use(express.static(path.join(__dirname, '..')));
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS admins(
