@@ -1,1 +1,3 @@
-STRIX VIP PANEL V1.3 — Marzban-style redesign
+STRIX VIP PANEL V1.4
+Nova-inspired UI refresh
+Backend/API/authentication: unchanged

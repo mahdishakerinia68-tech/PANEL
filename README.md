@@ -1,8 +1,8 @@
-# STRIX VIP PANEL V1.3
+# STRIX VIP PANEL V1.4
 
 پنل مدیریتی مشکی/طلایی با ساختار نزدیک به پنل Marzban، احراز هویت واقعی Backend و دیتابیس SQLite.
 
-## امکانات V1.3
+## امکانات V1.4
 - First Admin Setup فقط در صورت خالی بودن جدول `admins`.
 - ترتیب Setup: رمز ادمین، تکرار رمز، سپس آیدی ادمین.
 - بدون Username/Password پیش‌فرض.
@@ -28,5 +28,5 @@ npm start
 سپس فایل‌های ریشه را با یک Static Server سرو کنید و API را روی همان Origin یا با Proxy به Backend متصل کنید.
 
 
-### مهم برای ورود
-برای اجرای کامل پنل، Frontend و Backend را از یک سرور اجرا کنید: داخل `backend/` دستور `npm install` و سپس `npm start` را اجرا کنید و پنل را از `http://SERVER:3000/` باز کنید. باز کردن مستقیم `index.html` با `file://` یا فقط GitHub Pages باعث می‌شود APIهای Login/Setup به Backend وصل نشوند. اگر Frontend روی دامنه جداست، قبل از `app.js` مقدار `window.STRIX_API_BASE` را برابر آدرس Backend قرار دهید.
+## V1.4 UI Refresh
+Modern dark/gold Nova-inspired presentation applied to the existing STRIX frontend. Backend, API endpoints, authentication, session handling, and data logic were intentionally left unchanged.
