@@ -5,12 +5,22 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const path = require('path');
+const fs = require('fs');
 const Database = require('better-sqlite3');
 
 const app = express();
+app.set('trust proxy', 1); // needed for correct client IPs / rate limiting behind Nginx
 const db = new Database(process.env.DB_PATH || 'strix.db');
 app.use(cors());
 app.use(express.json());
+
+// Minimal security headers (no extra dependency needed)
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  next();
+});
 
 // Serve the existing frontend from the same backend so API paths like /api/...
 // work when the project is started with `npm start` from backend/.
@@ -45,8 +55,57 @@ function ensureColumn(table, column, definition) {
 ensureColumn('admins', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('customers', 'session_version', 'INTEGER NOT NULL DEFAULT 0');
 
-const secret = process.env.JWT_SECRET || crypto.randomBytes(48).toString('hex');
+// BUG FIX: previously, if JWT_SECRET was not set in .env, a new random secret
+// was generated in memory on every process start. That meant every restart
+// (crash, redeploy, `pm2 restart`, server reboot, ...) silently invalidated
+// every admin and every reseller's session, forcing everyone to log in again
+// with no warning. We now persist a generated secret to a local file on first
+// run, so restarts keep using the SAME secret and sessions survive. Setting
+// JWT_SECRET in .env (recommended for production) still always takes priority.
+const SECRET_FILE = path.join(__dirname, '.jwt-secret');
+function resolveSecret() {
+  if (process.env.JWT_SECRET && process.env.JWT_SECRET.trim()) return process.env.JWT_SECRET.trim();
+  try {
+    if (fs.existsSync(SECRET_FILE)) {
+      const existing = fs.readFileSync(SECRET_FILE, 'utf8').trim();
+      if (existing) return existing;
+    }
+  } catch (e) { /* fall through and generate a new one */ }
+  const generated = crypto.randomBytes(48).toString('hex');
+  try {
+    fs.writeFileSync(SECRET_FILE, generated, { mode: 0o600 });
+  } catch (e) {
+    console.warn('WARNING: could not persist JWT secret to disk; sessions will not survive a restart until JWT_SECRET is set in .env');
+  }
+  return generated;
+}
+const secret = resolveSecret();
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+
+// Very small in-memory rate limiter for auth endpoints (no extra dependency).
+// Blocks an IP after too many failed attempts in a short window — important
+// for a panel selling paid accounts, since login/setup are the main brute-force targets.
+const attempts = new Map(); // ip -> { count, resetAt }
+function rateLimit(max, windowMs) {
+  return (req, res, next) => {
+    const ip = req.ip || 'unknown';
+    const now = Date.now();
+    const rec = attempts.get(ip);
+    if (!rec || now > rec.resetAt) {
+      attempts.set(ip, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+    if (rec.count >= max) {
+      return res.status(429).json({ error: 'too_many_attempts' });
+    }
+    rec.count++;
+    next();
+  };
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, rec] of attempts) if (now > rec.resetAt) attempts.delete(ip);
+}, 5 * 60 * 1000).unref();
 
 function adminCount() {
   return db.prepare('SELECT COUNT(*) AS n FROM admins').get().n;
@@ -99,7 +158,7 @@ app.get('/api/setup/status', (req, res) => {
   res.json({ needsSetup: adminCount() === 0 });
 });
 
-app.post('/api/setup/create-admin', (req, res) => {
+app.post('/api/setup/create-admin', rateLimit(10, 10 * 60 * 1000), (req, res) => {
   if (adminCount() > 0) return res.status(409).json({ error: 'setup_completed' });
   const username = String(req.body?.username || '').trim();
   const password = req.body?.password;
@@ -121,7 +180,7 @@ app.post('/api/setup/create-admin', (req, res) => {
   }
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', rateLimit(8, 10 * 60 * 1000), (req, res) => {
   const username = String(req.body?.username || '').trim();
   const password = req.body?.password;
   if (!username || typeof password !== 'string') return res.status(400).json({ error: 'missing_credentials' });
