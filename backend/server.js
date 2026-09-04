@@ -335,6 +335,27 @@ crud('plans',['name','gb','days']);
 crud('users',['name','plan','gb','date']);
 crud('services',['name','user','server','link']);
 
+// Full factory reset: wipes EVERY table (admins included) so the panel goes
+// back to a blank state and shows the "first admin setup" screen again.
+// Requires the current admin's password as confirmation since this is
+// irreversible and destroys all reseller/customer data.
+app.post('/api/system/factory-reset', auth, admin, (req, res) => {
+  const password = req.body?.password;
+  if (typeof password !== 'string' || !password) return res.status(400).json({ error: 'password_required' });
+  const me = db.prepare('SELECT * FROM admins WHERE id=?').get(req.auth.adminId);
+  if (!me || !bcrypt.compareSync(password, me.password_hash)) return res.status(401).json({ error: 'invalid_login' });
+  try {
+    const wipe = db.transaction(() => {
+      ['logs', 'services', 'users', 'plans', 'servers', 'customers', 'admins'].forEach(t => db.exec(`DELETE FROM ${t}`));
+      try { db.exec('DELETE FROM sqlite_sequence'); } catch (e) { /* table may not exist yet, ignore */ }
+    });
+    wipe();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'reset_failed' });
+  }
+});
+
 app.get('/api/logs',auth,(req,res)=>{
   if(req.auth.role==='admin') return res.json(db.prepare('SELECT * FROM logs ORDER BY id DESC').all());
   res.json(db.prepare('SELECT * FROM logs WHERE customer_id=? ORDER BY id DESC').all(req.auth.customerId));
