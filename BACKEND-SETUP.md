@@ -1,4 +1,4 @@
-# STRIX VIP PANEL V1.3 — Backend Setup
+# STRIX VIP PANEL V1.1.1 — Backend Setup
 
 1. وارد `backend/` شوید.
 2. `npm install`
